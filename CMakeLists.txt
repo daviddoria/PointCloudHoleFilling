@@ -76,7 +76,7 @@ endif()
 
 get_property(PatchBasedInpaintingIncludeDirs GLOBAL PROPERTY PatchBasedInpaintingIncludeDirs)
 set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PatchBasedInpaintingIncludeDirs})
-get_property(ITKVTKHelpersLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+get_property(PatchBasedInpaintingLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
 set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PatchBasedInpaintingLibs})
 
 # Only include PoissonEditing if it is not already available.
@@ -87,7 +87,7 @@ endif()
 
 get_property(PoissonEditingIncludeDirs GLOBAL PROPERTY PoissonEditingIncludeDirs)
 set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PoissonEditingIncludeDirs})
-get_property(ITKVTKHelpersLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+get_property(PatchBasedInpaintingLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
 set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PoissonEditingLibs})
 
 # Only include PTXTools if it is not already available.
@@ -98,7 +98,7 @@ endif()
 
 get_property(PoissonEditingIncludeDirs GLOBAL PROPERTY PTXToolsIncludeDirs)
 set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PTXToolsIncludeDirs})
-get_property(ITKVTKHelpersLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+get_property(PatchBasedInpaintingLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
 set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PTXToolsLibs})
 
 # Check for submodules
