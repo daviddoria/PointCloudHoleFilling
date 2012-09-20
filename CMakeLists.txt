@@ -21,6 +21,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 # VTK
 FIND_PACKAGE(VTK REQUIRED)
 INCLUDE(${VTK_USE_FILE})
+set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${VTK_LIBRARIES})
 
 if( "${VTK_MAJOR_VERSION}" LESS 6 )
   MESSAGE(FATAL_ERROR "You must build this code with VTK >= 6.0!")
@@ -28,9 +29,11 @@ endif( "${VTK_MAJOR_VERSION}" LESS 6 )
 
 # ITK
 FIND_PACKAGE(ITK REQUIRED ITKCommon ITKIOImageBase ITKIOPNG ITKIOMeta
-ITKImageIntensity ITKImageFeature ITKMathematicalMorphology ITKBinaryMathematicalMorphology ITKDistanceMap)
+             ITKImageIntensity ITKImageFeature ITKMathematicalMorphology ITKBinaryMathematicalMorphology ITKDistanceMap)
 INCLUDE(${ITK_USE_FILE})
+set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${ITK_LIBRARIES})
 
+# Boost
 FIND_PACKAGE(Boost 1.51 REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
@@ -65,33 +68,49 @@ if(NOT EIGEN3_FOUND)
 endif()
 
 # Submodules
-if(NOT TARGET PatchBasedInpainting)
+# Only include PatchBasedInpainting if it is not already available.
+get_property(FoundPatchBasedInpainting GLOBAL PROPERTY PatchBasedInpaintingIncludeDirs SET)
+if(NOT FoundPatchBasedInpainting)
   add_subdirectory(PatchBasedInpainting)
-  include_directories(${PatchBasedInpainting_includes})
-  set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PatchBasedInpainting_includes})
-  set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PatchBasedInpainting_libraries})
 endif()
 
-if(NOT TARGET PoissonEditing)
+get_property(PatchBasedInpaintingIncludeDirs GLOBAL PROPERTY PatchBasedInpaintingIncludeDirs)
+set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PatchBasedInpaintingIncludeDirs})
+get_property(ITKVTKHelpersLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PatchBasedInpaintingLibs})
+
+# Only include PoissonEditing if it is not already available.
+get_property(FoundPoissonEditing GLOBAL PROPERTY PoissonEditingIncludeDirs SET)
+if(NOT FoundPoissonEditing)
   add_subdirectory(PoissonEditing)
-  include_directories(${PoissonEditing_includes})
-  set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PoissonEditing_includes})
-  set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PoissonEditing_libraries})
 endif()
 
-if(NOT TARGET PTXTools)
+get_property(PoissonEditingIncludeDirs GLOBAL PROPERTY PoissonEditingIncludeDirs)
+set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PoissonEditingIncludeDirs})
+get_property(ITKVTKHelpersLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PoissonEditingLibs})
+
+# Only include PTXTools if it is not already available.
+get_property(FoundPTXTools GLOBAL PROPERTY PTXToolsIncludeDirs SET)
+if(NOT FoundPTXTools)
   add_subdirectory(PTXTools)
-  include_directories(${PTXTools_includes})
-  set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PTXTools_includes})
-  set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PTXTools_libraries})
 endif()
 
+get_property(PoissonEditingIncludeDirs GLOBAL PROPERTY PTXToolsIncludeDirs)
+set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PTXToolsIncludeDirs})
+get_property(ITKVTKHelpersLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PTXToolsLibs})
+
+# Check for submodules
 if( (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PatchBasedInpainting/.git") OR
 (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PoissonEditing/.git") OR
 (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PTXTools/.git") )
   message( SEND_ERROR "At least one of the git submodules is not available.
                        Please run git submodule update --init --recursive")
 endif()
+
+# Give the compiler all required include directories
+include_directories(${PointCloudHoleFilling_includes})
 
 ADD_EXECUTABLE(PointCloudHoleFilling PointCloudHoleFilling.cpp)
 TARGET_LINK_LIBRARIES(PointCloudHoleFilling PatchBasedInpainting
