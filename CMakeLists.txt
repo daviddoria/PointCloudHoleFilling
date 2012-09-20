@@ -87,7 +87,7 @@ endif()
 
 get_property(PoissonEditingIncludeDirs GLOBAL PROPERTY PoissonEditingIncludeDirs)
 set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PoissonEditingIncludeDirs})
-get_property(PatchBasedInpaintingLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+get_property(PoissonEditingLibs GLOBAL PROPERTY PoissonEditingLibs)
 set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PoissonEditingLibs})
 
 # Only include PTXTools if it is not already available.
@@ -96,9 +96,9 @@ if(NOT FoundPTXTools)
   add_subdirectory(PTXTools)
 endif()
 
-get_property(PoissonEditingIncludeDirs GLOBAL PROPERTY PTXToolsIncludeDirs)
+get_property(PTXToolsIncludeDirs GLOBAL PROPERTY PTXToolsIncludeDirs)
 set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PTXToolsIncludeDirs})
-get_property(PatchBasedInpaintingLibs GLOBAL PROPERTY PatchBasedInpaintingLibs)
+get_property(PTXToolsLibs GLOBAL PROPERTY PTXToolsLibs)
 set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PTXToolsLibs})
 
 # Check for submodules
@@ -113,7 +113,6 @@ endif()
 include_directories(${PointCloudHoleFilling_includes})
 
 ADD_EXECUTABLE(PointCloudHoleFilling PointCloudHoleFilling.cpp)
-TARGET_LINK_LIBRARIES(PointCloudHoleFilling PatchBasedInpainting
-${PointCloudHoleFilling_libraries}
+TARGET_LINK_LIBRARIES(PointCloudHoleFilling ${PointCloudHoleFilling_libraries}
 gomp)
 INSTALL( TARGETS PointCloudHoleFilling RUNTIME DESTINATION ${INSTALL_DIR} )
