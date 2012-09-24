@@ -32,6 +32,7 @@
 
 // PatchBasedInpainting
 #include <PatchBasedInpainting/ImageProcessing/Derivatives.h>
+#include <PatchBasedInpainting/Drivers/InpaintingTexture.hpp>
 
 // ITK
 #include "itkImage.h"
@@ -41,15 +42,15 @@ int main(int argc, char *argv[])
 {
   // Verify arguments
   if(argc != 5)
-    {
+  {
     std::cerr << "Required arguments: PointCloud.ptx imageMask.mask patchHalfWidth output.png" << std::endl;
     std::cerr << "Input arguments: ";
     for(int i = 1; i < argc; ++i)
-      {
+    {
       std::cerr << argv[i] << " ";
-      }
-    return EXIT_FAILURE;
     }
+    return EXIT_FAILURE;
+  }
 
   // Parse arguments
   std::string ptxFileName = argv[1];
@@ -103,7 +104,8 @@ int main(int argc, char *argv[])
   ITKHelpers::StackImages(rgbImage.GetPointer(), depthGradientImage.GetPointer(), rgbDxDyImage.GetPointer());
 
   // Inpaint
-
+  const unsigned int numberOfKNN = 100;
+  InpaintingTexture(rgbDxDyImage.GetPointer(), mask, patchHalfWidth, numberOfKNN);
 
   // Extract inpainted depth gradients
   std::vector<unsigned int> depthGradientChannels = {3, 4};
