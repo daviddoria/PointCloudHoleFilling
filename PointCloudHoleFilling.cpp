@@ -34,6 +34,9 @@
 #include <PatchBasedInpainting/ImageProcessing/Derivatives.h>
 #include <PatchBasedInpainting/Drivers/InpaintingTexture.hpp>
 
+// SmallHoleFiller
+#include <SmallHoleFiller/SmallHoleFiller.h>
+
 // ITK
 #include "itkImage.h"
 #include "itkImageFileReader.h"
@@ -83,6 +86,28 @@ int main(int argc, char *argv[])
     throw std::runtime_error(ss.str());
   }
 
+  // Fill invalid pixels in the PTX grid
+
+  // Find the invalid pixels
+  PTXImage::MaskImageType::Pointer invalidMaskImage = PTXImage::MaskImageType::New();
+  ptxImage.CreateValidityImage(invalidMaskImage);
+  Mask::Pointer invalidMask = Mask::New();
+  invalidMask->CreateFromImage(invalidMaskImage.GetPointer(), 0);
+
+  PTXImage::RGBDImageType::Pointer rgbdImage = PTXImage::RGBDImageType::New();
+  ptxImage.CreateRGBDImage(rgbdImage.GetPointer());
+
+  SmallHoleFiller<PTXImage::RGBDImageType> smallHoleFiller(rgbdImage.GetPointer(), invalidMask);
+  //smallHoleFiller.SetWriteIntermediateOutput(true);
+  unsigned int kernelRadius = 1;
+  unsigned int downsampleFactor = 1;
+  smallHoleFiller.SetKernelRadius(kernelRadius);
+  smallHoleFiller.SetDownsampleFactor(downsampleFactor);
+  smallHoleFiller.Fill();
+
+  ptxImage.ReplaceRGBD(smallHoleFiller.GetOutput());
+
+  // Start the large hole filling procedure
   typedef PTXImage::DepthImageType DepthImageType;
   DepthImageType::Pointer depthImage = DepthImageType::New();
   ptxImage.CreateDepthImage(depthImage);

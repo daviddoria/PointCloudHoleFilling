@@ -7,3 +7,6 @@
 [submodule "PTXTools"]
 	path = PTXTools
 	url = https://github.com/daviddoria/PTXTools.git
+[submodule "SmallHoleFiller"]
+	path = SmallHoleFiller
+	url = https://github.com/daviddoria/SmallHoleFiller.git

@@ -90,6 +90,17 @@ set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${PoissonEd
 get_property(PoissonEditingLibs GLOBAL PROPERTY PoissonEditingLibs)
 set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${PoissonEditingLibs})
 
+# Only include SmallHoleFiller if it is not already available.
+get_property(FoundSmallHoleFiller GLOBAL PROPERTY SmallHoleFillerIncludeDirs SET)
+if(NOT FoundSmallHoleFiller)
+  add_subdirectory(SmallHoleFiller)
+endif()
+
+get_property(SmallHoleFillerIncludeDirs GLOBAL PROPERTY SmallHoleFillerIncludeDirs)
+set(PointCloudHoleFilling_includes ${PointCloudHoleFilling_includes} ${SmallHoleFillerIncludeDirs})
+get_property(SmallHoleFillerLibs GLOBAL PROPERTY SmallHoleFillerLibs)
+set(PointCloudHoleFilling_libraries ${PointCloudHoleFilling_libraries} ${SmallHoleFillerLibs})
+
 # Only include PTXTools if it is not already available.
 get_property(FoundPTXTools GLOBAL PROPERTY PTXToolsIncludeDirs SET)
 if(NOT FoundPTXTools)
