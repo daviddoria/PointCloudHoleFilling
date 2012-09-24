@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
   // Verify arguments
   if(argc != 5)
   {
-    std::cerr << "Required arguments: PointCloud.ptx imageMask.mask patchHalfWidth output.png" << std::endl;
+    std::cerr << "Required arguments: PointCloud.ptx imageMask.mask patchHalfWidth outputPrefix" << std::endl;
     std::cerr << "Input arguments: ";
     for(int i = 1; i < argc; ++i)
     {
@@ -61,13 +61,13 @@ int main(int argc, char *argv[])
   unsigned int patchHalfWidth = 0;
   ssPatchHalfWidth >> patchHalfWidth;
 
-  std::string outputFileName = argv[4];
+  std::string outputPrefix = argv[4];
 
   // Output arguments
   std::cout << "Reading ptx: " << ptxFileName << std::endl;
   std::cout << "Reading mask: " << maskFileName << std::endl;
   std::cout << "Patch half width: " << patchHalfWidth << std::endl;
-  std::cout << "Output: " << outputFileName << std::endl;
+  std::cout << "Output prefix: " << outputPrefix << std::endl;
 
   // Read the files
   PTXImage ptxImage = PTXReader::Read(ptxFileName);
@@ -105,32 +105,44 @@ int main(int argc, char *argv[])
 
   // Inpaint
   const unsigned int numberOfKNN = 100;
-  InpaintingTexture(rgbDxDyImage.GetPointer(), mask, patchHalfWidth, numberOfKNN);
+//  InpaintingTexture(rgbDxDyImage.GetPointer(), mask, patchHalfWidth, numberOfKNN);
+
+  ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "Inpainted.mha");
 
   // Extract inpainted depth gradients
   std::vector<unsigned int> depthGradientChannels = {3, 4};
   GradientImageType::Pointer inpaintedDepthGradients = GradientImageType::New();
   ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), depthGradientChannels,
                               inpaintedDepthGradients.GetPointer());
+  ITKHelpers::WriteImage(inpaintedDepthGradients.GetPointer(), "InpaintedDepthGradients.mha");
 
   // Extract inpainted RGB image
   std::vector<unsigned int> rgbChannels = {0, 1, 2};
   RGBImageType::Pointer inpaintedRGBImage = RGBImageType::New();
   ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), rgbChannels,
                               inpaintedRGBImage.GetPointer());
+  ITKHelpers::WriteImage(inpaintedRGBImage.GetPointer(), "InpaintedRGB.png");
 
   // Poisson filling
   DepthImageType::Pointer inpaintedDepthImage = DepthImageType::New();
   PoissonEditing<float>::FillScalarImage(depthImage.GetPointer(), mask,
                                          inpaintedDepthGradients.GetPointer(),
                                          inpaintedDepthImage.GetPointer());
+  ITKHelpers::WriteImage(inpaintedDepthImage.GetPointer(), "InpaintedDepth.mha");
 
   // Assemble and write output
   PTXImage filledPTX = ptxImage;
   filledPTX.SetAllPointsToValid();
   filledPTX.ReplaceDepth(inpaintedDepthImage);
   filledPTX.ReplaceRGB(inpaintedRGBImage);
-  filledPTX.WritePointCloud(outputFileName);
+
+  std::stringstream ssPTXOutput;
+  ssPTXOutput << outputPrefix << ".ptx";
+  filledPTX.WritePTX(ssPTXOutput.str());
+
+  std::stringstream ssVTPOutput;
+  ssVTPOutput << outputPrefix << ".vtp";
+  filledPTX.WritePointCloud(ssVTPOutput.str());
 
   return EXIT_SUCCESS;
 }
