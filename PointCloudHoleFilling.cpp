@@ -86,7 +86,9 @@ int main(int argc, char *argv[])
     throw std::runtime_error(ss.str());
   }
 
-  // Fill invalid pixels in the PTX grid
+  ptxImage.WritePointCloud(std::string("Original.vtp"));
+
+  ///////////// Fill invalid pixels in the PTX grid /////////////
 
   // Find the invalid pixels
   PTXImage::MaskImageType::Pointer invalidMaskImage = PTXImage::MaskImageType::New();
@@ -96,6 +98,7 @@ int main(int argc, char *argv[])
 
   PTXImage::RGBDImageType::Pointer rgbdImage = PTXImage::RGBDImageType::New();
   ptxImage.CreateRGBDImage(rgbdImage.GetPointer());
+  ITKHelpers::WriteImage(rgbdImage.GetPointer(), "RGBD.mha");
 
   SmallHoleFiller<PTXImage::RGBDImageType> smallHoleFiller(rgbdImage.GetPointer(), invalidMask);
   //smallHoleFiller.SetWriteIntermediateOutput(true);
@@ -105,69 +108,82 @@ int main(int argc, char *argv[])
   smallHoleFiller.SetDownsampleFactor(downsampleFactor);
   smallHoleFiller.Fill();
 
-  ptxImage.ReplaceRGBD(smallHoleFiller.GetOutput());
+  ITKHelpers::WriteImage(smallHoleFiller.GetOutput(), "Valid.mha");
 
-  // Start the large hole filling procedure
-  typedef PTXImage::DepthImageType DepthImageType;
-  DepthImageType::Pointer depthImage = DepthImageType::New();
-  ptxImage.CreateDepthImage(depthImage);
+  ptxImage.SetAllPointsToValid(); // This call must come before ReplaceRGBD, because the values are only replaced for valid pixels!
 
-  typedef itk::Image<itk::CovariantVector<float, 2>, 2> GradientImageType;
-  GradientImageType::Pointer depthGradientImage = GradientImageType::New();
+//  ptxImage.ReplaceRGBD(smallHoleFiller.GetOutput());
 
-  // Not sure if this will work correctly since the Poisson equation needs to use the same operator as was used in the derivative computations.
-  // Potentially use the techniqie in ITK_OneShot:ForwardDifferenceDerivatives instead?
-  Derivatives::MaskedGradient(depthImage.GetPointer(), mask, depthGradientImage.GetPointer());
+  PTXImage::DepthImageType::Pointer newDepthImage = PTXImage::DepthImageType::New();
+  ITKHelpers::ExtractChannel(smallHoleFiller.GetOutput(), 3, newDepthImage.GetPointer());
+  ptxImage.ReplaceDepth(newDepthImage.GetPointer());
 
-  typedef PTXImage::RGBImageType RGBImageType;
-  RGBImageType::Pointer rgbImage = RGBImageType::New();
-  ptxImage.CreateRGBImage(rgbImage);
+  ptxImage.WritePTX(std::string("Valid.ptx"));
 
-  // Construct RGBDxDy image to inpaint
-  typedef itk::Image<itk::CovariantVector<float, 5>, 2> RGBDxDyImageType;
-  RGBDxDyImageType::Pointer rgbDxDyImage = RGBDxDyImageType::New();
-  ITKHelpers::StackImages(rgbImage.GetPointer(), depthGradientImage.GetPointer(), rgbDxDyImage.GetPointer());
+  ptxImage.WritePointCloud(std::string("Valid.vtp"));
 
-  // Inpaint
-  const unsigned int numberOfKNN = 100;
-//  InpaintingTexture(rgbDxDyImage.GetPointer(), mask, patchHalfWidth, numberOfKNN);
+  ///////////// Inpaint the specified hole /////////////
+//  typedef PTXImage::DepthImageType DepthImageType;
+//  DepthImageType::Pointer depthImage = DepthImageType::New();
+//  ptxImage.CreateDepthImage(depthImage);
 
-  ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "Inpainted.mha");
+//  typedef itk::Image<itk::CovariantVector<float, 2>, 2> GradientImageType;
+//  GradientImageType::Pointer depthGradientImage = GradientImageType::New();
 
-  // Extract inpainted depth gradients
-  std::vector<unsigned int> depthGradientChannels = {3, 4};
-  GradientImageType::Pointer inpaintedDepthGradients = GradientImageType::New();
-  ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), depthGradientChannels,
-                              inpaintedDepthGradients.GetPointer());
-  ITKHelpers::WriteImage(inpaintedDepthGradients.GetPointer(), "InpaintedDepthGradients.mha");
+//  // Not sure if this will work correctly since the Poisson equation needs to use the same operator as was used in the derivative computations.
+//  // Potentially use the techniqie in ITK_OneShot:ForwardDifferenceDerivatives instead?
+//  Derivatives::MaskedGradient(depthImage.GetPointer(), mask, depthGradientImage.GetPointer());
 
-  // Extract inpainted RGB image
-  std::vector<unsigned int> rgbChannels = {0, 1, 2};
-  RGBImageType::Pointer inpaintedRGBImage = RGBImageType::New();
-  ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), rgbChannels,
-                              inpaintedRGBImage.GetPointer());
-  ITKHelpers::WriteImage(inpaintedRGBImage.GetPointer(), "InpaintedRGB.png");
+//  typedef PTXImage::RGBImageType RGBImageType;
+//  RGBImageType::Pointer rgbImage = RGBImageType::New();
+//  ptxImage.CreateRGBImage(rgbImage);
 
-  // Poisson filling
-  DepthImageType::Pointer inpaintedDepthImage = DepthImageType::New();
-  PoissonEditing<float>::FillScalarImage(depthImage.GetPointer(), mask,
-                                         inpaintedDepthGradients.GetPointer(),
-                                         inpaintedDepthImage.GetPointer());
-  ITKHelpers::WriteImage(inpaintedDepthImage.GetPointer(), "InpaintedDepth.mha");
+//  // Construct RGBDxDy image to inpaint
+//  typedef itk::Image<itk::CovariantVector<float, 5>, 2> RGBDxDyImageType;
+//  RGBDxDyImageType::Pointer rgbDxDyImage = RGBDxDyImageType::New();
+//  ITKHelpers::StackImages(rgbImage.GetPointer(), depthGradientImage.GetPointer(), rgbDxDyImage.GetPointer());
 
-  // Assemble and write output
-  PTXImage filledPTX = ptxImage;
-  filledPTX.SetAllPointsToValid();
-  filledPTX.ReplaceDepth(inpaintedDepthImage);
-  filledPTX.ReplaceRGB(inpaintedRGBImage);
+//  // Inpaint
+//  const unsigned int numberOfKNN = 100;
+////  InpaintingTexture(rgbDxDyImage.GetPointer(), mask, patchHalfWidth, numberOfKNN);
 
-  std::stringstream ssPTXOutput;
-  ssPTXOutput << outputPrefix << ".ptx";
-  filledPTX.WritePTX(ssPTXOutput.str());
+//  ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "Inpainted.mha");
 
-  std::stringstream ssVTPOutput;
-  ssVTPOutput << outputPrefix << ".vtp";
-  filledPTX.WritePointCloud(ssVTPOutput.str());
+//  ///////////// Assemble the result /////////////
+//  // Extract inpainted depth gradients
+//  std::vector<unsigned int> depthGradientChannels = {3, 4};
+//  GradientImageType::Pointer inpaintedDepthGradients = GradientImageType::New();
+//  ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), depthGradientChannels,
+//                              inpaintedDepthGradients.GetPointer());
+//  ITKHelpers::WriteImage(inpaintedDepthGradients.GetPointer(), "InpaintedDepthGradients.mha");
+
+//  // Extract inpainted RGB image
+//  std::vector<unsigned int> rgbChannels = {0, 1, 2};
+//  RGBImageType::Pointer inpaintedRGBImage = RGBImageType::New();
+//  ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), rgbChannels,
+//                              inpaintedRGBImage.GetPointer());
+//  ITKHelpers::WriteImage(inpaintedRGBImage.GetPointer(), "InpaintedRGB.png");
+
+//  // Poisson filling
+//  DepthImageType::Pointer inpaintedDepthImage = DepthImageType::New();
+//  PoissonEditing<float>::FillScalarImage(depthImage.GetPointer(), mask,
+//                                         inpaintedDepthGradients.GetPointer(),
+//                                         inpaintedDepthImage.GetPointer());
+//  ITKHelpers::WriteImage(inpaintedDepthImage.GetPointer(), "InpaintedDepth.mha");
+
+//  // Assemble and write output
+//  PTXImage filledPTX = ptxImage;
+//  filledPTX.SetAllPointsToValid();
+//  filledPTX.ReplaceDepth(inpaintedDepthImage);
+//  filledPTX.ReplaceRGB(inpaintedRGBImage);
+
+//  std::stringstream ssPTXOutput;
+//  ssPTXOutput << outputPrefix << ".ptx";
+//  filledPTX.WritePTX(ssPTXOutput.str());
+
+//  std::stringstream ssVTPOutput;
+//  ssVTPOutput << outputPrefix << ".vtp";
+//  filledPTX.WritePointCloud(ssVTPOutput.str());
 
   return EXIT_SUCCESS;
 }
