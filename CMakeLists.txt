@@ -127,3 +127,8 @@ ADD_EXECUTABLE(PointCloudHoleFilling PointCloudHoleFilling.cpp)
 TARGET_LINK_LIBRARIES(PointCloudHoleFilling ${PointCloudHoleFilling_libraries}
 gomp)
 INSTALL( TARGETS PointCloudHoleFilling RUNTIME DESTINATION ${INSTALL_DIR} )
+
+ADD_EXECUTABLE(ReconstructRGBDxDy ReconstructRGBDxDy.cpp)
+TARGET_LINK_LIBRARIES(ReconstructRGBDxDy ${PointCloudHoleFilling_libraries}
+gomp)
+INSTALL( TARGETS ReconstructRGBDxDy RUNTIME DESTINATION ${INSTALL_DIR} )

@@ -41,12 +41,16 @@
 #include "itkImage.h"
 #include "itkImageFileReader.h"
 
+/** This program takes a ptx, mask, and completed RGBDxDy image and reconstructs the final point cloud.
+  * This functionality if included in PointCloudHoleFilling, but that full procedure (including the inpainting)
+  * can take a long time to run.
+  */
 int main(int argc, char *argv[])
 {
   // Verify arguments
   if(argc != 5)
   {
-    std::cerr << "Required arguments: PointCloud.ptx imageMask.mask patchHalfWidth outputPrefix" << std::endl;
+    std::cerr << "Required arguments: PointCloud.ptx imageMask.mask RGBDxDy.mha outputPrefix" << std::endl;
     std::cerr << "Input arguments: ";
     for(int i = 1; i < argc; ++i)
     {
@@ -58,18 +62,13 @@ int main(int argc, char *argv[])
   // Parse arguments
   std::string ptxFileName = argv[1];
   std::string maskFileName = argv[2];
-
-  std::stringstream ssPatchHalfWidth;
-  ssPatchHalfWidth << argv[3];
-  unsigned int patchHalfWidth = 0;
-  ssPatchHalfWidth >> patchHalfWidth;
-
+  std::string RGBDxDyFileName = argv[3];
   std::string outputPrefix = argv[4];
 
   // Output arguments
   std::cout << "Reading ptx: " << ptxFileName << std::endl;
   std::cout << "Reading mask: " << maskFileName << std::endl;
-  std::cout << "Patch half width: " << patchHalfWidth << std::endl;
+  std::cout << "RGBDxDyFileName: " << RGBDxDyFileName << std::endl;
   std::cout << "Output prefix: " << outputPrefix << std::endl;
 
   // Read the files
@@ -77,10 +76,6 @@ int main(int argc, char *argv[])
 
   Mask::Pointer mask = Mask::New();
   mask->Read(maskFileName);
-
-  // We need this because the 'mask' above gets filled during the inpainting
-  Mask::Pointer originalMask = Mask::New();
-  originalMask->DeepCopyFrom(mask);
 
   if(mask->GetLargestPossibleRegion() != ptxImage.GetFullRegion())
   {
@@ -123,52 +118,39 @@ int main(int argc, char *argv[])
 
   ptxImage.WritePointCloud(std::string("Valid.vtp"));
 
-  ///////////// Inpaint the specified hole /////////////
-  typedef PTXImage::DepthImageType DepthImageType;
-  DepthImageType::Pointer depthImage = DepthImageType::New();
-  ptxImage.CreateDepthImage(depthImage);
-
-  typedef itk::Image<itk::CovariantVector<float, 2>, 2> GradientImageType;
-  GradientImageType::Pointer depthGradientImage = GradientImageType::New();
-
-  // Not sure if this will work correctly since the Poisson equation needs to use the same operator as was used in the derivative computations.
-  // Potentially use the techniqie in ITK_OneShot:ForwardDifferenceDerivatives instead?
-  Derivatives::MaskedGradient(depthImage.GetPointer(), mask, depthGradientImage.GetPointer());
-
-  typedef PTXImage::RGBImageType RGBImageType;
-  RGBImageType::Pointer rgbImage = RGBImageType::New();
-  ptxImage.CreateRGBImage(rgbImage);
-
-  // Construct RGBDxDy image to inpaint
+  // Read the RGBDxDy image
   typedef itk::Image<itk::CovariantVector<float, 5>, 2> RGBDxDyImageType;
-  RGBDxDyImageType::Pointer rgbDxDyImage = RGBDxDyImageType::New();
-  ITKHelpers::StackImages(rgbImage.GetPointer(), depthGradientImage.GetPointer(), rgbDxDyImage.GetPointer());
-  ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "RGBDxDy.mha");
+  typedef itk::ImageFileReader<RGBDxDyImageType> RGBDxDyReaderType;
+  RGBDxDyReaderType::Pointer rgbDxDyReader = RGBDxDyReaderType::New();
+  rgbDxDyReader->SetFileName(RGBDxDyFileName);
+  rgbDxDyReader->Update();
 
-  // Inpaint
-  const unsigned int numberOfKNN = 100;
-  LidarInpaintingTextureVerification(rgbDxDyImage.GetPointer(), mask, patchHalfWidth, numberOfKNN);
-
-  ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "InpaintedRGBDxDy.mha");
+  RGBDxDyImageType* rgbDxDyImage = rgbDxDyReader->GetOutput();
 
   ///////////// Assemble the result /////////////
   // Extract inpainted depth gradients
   std::vector<unsigned int> depthGradientChannels = {3, 4};
+  typedef itk::Image<itk::CovariantVector<float, 2>, 2> GradientImageType;
   GradientImageType::Pointer inpaintedDepthGradients = GradientImageType::New();
-  ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), depthGradientChannels,
+  ITKHelpers::ExtractChannels(rgbDxDyImage, depthGradientChannels,
                               inpaintedDepthGradients.GetPointer());
   ITKHelpers::WriteImage(inpaintedDepthGradients.GetPointer(), "InpaintedDepthGradients.mha");
 
   // Extract inpainted RGB image
   std::vector<unsigned int> rgbChannels = {0, 1, 2};
   RGBImageType::Pointer inpaintedRGBImage = RGBImageType::New();
-  ITKHelpers::ExtractChannels(rgbDxDyImage.GetPointer(), rgbChannels,
+  ITKHelpers::ExtractChannels(rgbDxDyImage, rgbChannels,
                               inpaintedRGBImage.GetPointer());
   ITKHelpers::WriteImage(inpaintedRGBImage.GetPointer(), "InpaintedRGB.png");
 
-  // Poisson filling (we have to use the 'originalMask' because 'mask' will have been completely filled (no more hole pixels) during the inpainting)
+  // Poisson filling
+  typedef PTXImage::DepthImageType DepthImageType;
+
+  DepthImageType::Pointer depthImage = DepthImageType::New();
+  ptxImage.CreateDepthImage(depthImage);
+
   DepthImageType::Pointer inpaintedDepthImage = DepthImageType::New();
-  PoissonEditing<float>::FillScalarImage(depthImage.GetPointer(), originalMask,
+  PoissonEditing<float>::FillScalarImage(depthImage.GetPointer(), mask,
                                          inpaintedDepthGradients.GetPointer(),
                                          inpaintedDepthImage.GetPointer());
   ITKHelpers::WriteImage(inpaintedDepthImage.GetPointer(), "ReconstructedDepth.mha");
