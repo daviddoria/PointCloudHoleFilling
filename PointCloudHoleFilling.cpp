@@ -132,8 +132,13 @@ int main(int argc, char *argv[])
   GradientImageType::Pointer depthGradientImage = GradientImageType::New();
 
   // Not sure if this will work correctly since the Poisson equation needs to use the same operator as was used in the derivative computations.
-  // Potentially use the techniqie in ITK_OneShot:ForwardDifferenceDerivatives instead?
-  Derivatives::MaskedGradient(depthImage.GetPointer(), mask, depthGradientImage.GetPointer());
+  // Potentially use the technique in ITK_OneShot:ForwardDifferenceDerivatives instead?
+//  Derivatives::MaskedGradient(depthImage.GetPointer(), mask, depthGradientImage.GetPointer());
+
+  // This assumes that the hole has been defined such that the hole boundary is not close enough to the object being inpainted for those pixels
+  // to contribute to the computation. That is, if the mask was specified by a segmentation for example, it should be dilated before using this program
+  // because the gradients computed by ForwardDifferenceDerivatives will be erroneous near the hole boundary.
+  ITKHelpers::ForwardDifferenceDerivatives(depthImage.GetPointer(), depthGradientImage.GetPointer());
 
   typedef PTXImage::RGBImageType RGBImageType;
   RGBImageType::Pointer rgbImage = RGBImageType::New();

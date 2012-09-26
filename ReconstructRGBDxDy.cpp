@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
   // Assemble and write output
   PTXImage filledPTX = ptxImage;
   filledPTX.SetAllPointsToValid();
-  filledPTX.ReplaceDepth(inpaintedDepthImage);
+  filledPTX.ReplaceDepth(inpaintedDepthImage); // This must come before ReplaceRGB
   filledPTX.ReplaceRGB(inpaintedRGBImage);
 
   std::stringstream ssPTXOutput;
