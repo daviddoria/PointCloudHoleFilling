@@ -131,13 +131,10 @@ int main(int argc, char *argv[])
   typedef itk::Image<itk::CovariantVector<float, 2>, 2> GradientImageType;
   GradientImageType::Pointer depthGradientImage = GradientImageType::New();
 
-  // Not sure if this will work correctly since the Poisson equation needs to use the same operator as was used in the derivative computations.
-  // Potentially use the technique in ITK_OneShot:ForwardDifferenceDerivatives instead?
-//  Derivatives::MaskedGradient(depthImage.GetPointer(), mask, depthGradientImage.GetPointer());
-
   // This assumes that the hole has been defined such that the hole boundary is not close enough to the object being inpainted for those pixels
   // to contribute to the computation. That is, if the mask was specified by a segmentation for example, it should be dilated before using this program
   // because the gradients computed by ForwardDifferenceDerivatives will be erroneous near the hole boundary.
+  // This must be used rather than something like MaskedGradient because the Poisson equation needs to use the same operator as was used in the derivative computations.
   ITKHelpers::ForwardDifferenceDerivatives(depthImage.GetPointer(), depthGradientImage.GetPointer());
 
   typedef PTXImage::RGBImageType RGBImageType;
@@ -149,6 +146,11 @@ int main(int argc, char *argv[])
   RGBDxDyImageType::Pointer rgbDxDyImage = RGBDxDyImageType::New();
   ITKHelpers::StackImages(rgbImage.GetPointer(), depthGradientImage.GetPointer(), rgbDxDyImage.GetPointer());
   ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "RGBDxDy.mha");
+
+  // Fill the hole with black so that if debugging images are output they are easier to interpret
+  RGBDxDyImageType::PixelType zeroPixel;
+  zeroPixel.Fill(0);
+  originalMask->ApplyToImage(rgbDxDyImage.GetPointer(), zeroPixel);
 
   // Inpaint
   const unsigned int numberOfKNN = 100;

@@ -124,19 +124,26 @@ endif()
 include_directories(${PointCloudHoleFilling_includes})
 
 # This is the main executable to fill large holes in point clouds
-ADD_EXECUTABLE(PointCloudHoleFilling PointCloudHoleFilling.cpp)
-TARGET_LINK_LIBRARIES(PointCloudHoleFilling ${PointCloudHoleFilling_libraries}
-gomp)
-INSTALL( TARGETS PointCloudHoleFilling RUNTIME DESTINATION ${INSTALL_DIR} )
+
+option(PointCloudHoleFilling_PointCloudHoleFilling "Build the best PointCloudHoleFilling executable?" ON)
+if(PointCloudHoleFilling_PointCloudHoleFilling)
+    ADD_EXECUTABLE(PointCloudHoleFilling PointCloudHoleFilling.cpp)
+    TARGET_LINK_LIBRARIES(PointCloudHoleFilling ${PointCloudHoleFilling_libraries} gomp)
+    INSTALL( TARGETS PointCloudHoleFilling RUNTIME DESTINATION ${INSTALL_DIR} )
+endif()
 
 # This executable is for comparison purposes - it shows what happens when a point cloud hole is filled using a traditional inpainting approach
-ADD_EXECUTABLE(PointCloudHoleFillingNaive PointCloudHoleFillingNaive.cpp)
-TARGET_LINK_LIBRARIES(PointCloudHoleFillingNaive ${PointCloudHoleFilling_libraries}
-gomp)
-INSTALL( TARGETS PointCloudHoleFillingNaive RUNTIME DESTINATION ${INSTALL_DIR} )
+option(PointCloudHoleFilling_PointCloudHoleFillingNaive "Build the best PointCloudHoleFilling executable?" ON)
+if(PointCloudHoleFilling_PointCloudHoleFillingNaive)
+    ADD_EXECUTABLE(PointCloudHoleFillingNaive PointCloudHoleFillingNaive.cpp)
+    TARGET_LINK_LIBRARIES(PointCloudHoleFillingNaive ${PointCloudHoleFilling_libraries} gomp)
+    INSTALL( TARGETS PointCloudHoleFillingNaive RUNTIME DESTINATION ${INSTALL_DIR} )
+endif()
 
 # This executable reconstructs a point cloud from a filled RGBDxDy image
-ADD_EXECUTABLE(ReconstructRGBDxDy ReconstructRGBDxDy.cpp)
-TARGET_LINK_LIBRARIES(ReconstructRGBDxDy ${PointCloudHoleFilling_libraries}
-gomp)
-INSTALL( TARGETS ReconstructRGBDxDy RUNTIME DESTINATION ${INSTALL_DIR} )
+option(PointCloudHoleFilling_ReconstructRGBDxDy "Build the best PointCloudHoleFilling executable?" ON)
+if(PointCloudHoleFilling_ReconstructRGBDxDy)
+    ADD_EXECUTABLE(ReconstructRGBDxDy ReconstructRGBDxDy.cpp)
+    TARGET_LINK_LIBRARIES(ReconstructRGBDxDy ${PointCloudHoleFilling_libraries} gomp)
+    INSTALL( TARGETS ReconstructRGBDxDy RUNTIME DESTINATION ${INSTALL_DIR} )
+endif()
