@@ -41,6 +41,9 @@
 #include "itkImage.h"
 #include "itkImageFileReader.h"
 
+// Note: The mask image should appear upside down if viewed with a standard image viewer (i.e. gimp, etc). This is because the (0,0) pixel in the
+// scan grid is in the lower left corner (the scans are taken in columns bottom to top, left to right), but the image coordinate system has (0,0) in
+// the top left.
 int main(int argc, char *argv[])
 {
   // Verify arguments
