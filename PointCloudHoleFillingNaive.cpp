@@ -32,7 +32,7 @@
 
 // PatchBasedInpainting
 #include <PatchBasedInpainting/ImageProcessing/Derivatives.h>
-#include <PatchBasedInpainting/Drivers/ClassicalImageInpainting.hpp>
+#include <PatchBasedInpainting/Drivers/WeightedSSDInpainting.hpp>
 
 // SmallHoleFiller
 #include <SmallHoleFiller/SmallHoleFiller.h>
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
   ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "RGBDxDy.mha");
 
   // Inpaint (this line is the difference between this file and PointCloudHoleFilling.cpp)
-  ClassicalImageInpainting(rgbDxDyImage.GetPointer(), mask, patchHalfWidth);
+  WeightedSSDInpainting(rgbDxDyImage.GetPointer(), mask, patchHalfWidth);
 
   ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "InpaintedRGBDxDy.mha");
 
