@@ -32,7 +32,8 @@
 
 // PatchBasedInpainting
 #include <PatchBasedInpainting/ImageProcessing/Derivatives.h>
-#include <PatchBasedInpainting/Drivers/LidarInpaintingTextureVerification.hpp>
+#include <PatchBasedInpainting/Drivers/LidarInpaintingHSVTextureVerification.hpp>
+#include <PatchBasedInpainting/Drivers/LidarInpaintingRGBTextureVerification.hpp>
 
 // SmallHoleFiller
 #include <SmallHoleFiller/SmallHoleFiller.h>
@@ -153,11 +154,33 @@ int main(int argc, char *argv[])
   // Fill the hole with black so that if debugging images are output they are easier to interpret
   RGBDxDyImageType::PixelType zeroPixel;
   zeroPixel.Fill(0);
+  zeroPixel[0] = 255; // make the pixel red if interpreted as RGB
   originalMask->ApplyToImage(rgbDxDyImage.GetPointer(), zeroPixel);
 
   // Inpaint
   const unsigned int numberOfKNN = 100;
-  LidarInpaintingTextureVerification(rgbDxDyImage.GetPointer(), mask, patchHalfWidth, numberOfKNN);
+//  const unsigned int numberOfKNN = 500;
+
+  float slightBlurVariance = 0.0f;
+
+  float reduction = .7;
+  unsigned int imageRadius = rgbDxDyImage->GetLargestPossibleRegion().GetSize()[0]/2;
+  unsigned int searchRadius = imageRadius * reduction;
+
+  // Search the region that is the same size as the image, but centered at the patch. For the very center patch, this will search the whole image.
+  //  unsigned int searchRadius = rgbDxDyImage->GetLargestPossibleRegion().GetSize()[0]/2;
+
+  // Use a region twice the size of the image, this should always include (almost) all of the image in the search region.
+  // Since only the [0] dimension is used, if the image is not square we could still miss parts of image edge when searching around patches near the edge of the image.
+//  unsigned int searchRadius = rgbDxDyImage->GetLargestPossibleRegion().GetSize()[0];
+
+//  float localRegionSizeMultiplier = 1.5f;
+  float localRegionSizeMultiplier = 4.0f;
+  float maxAllowedUsedPixelsRatio = 0.5f;
+  LidarInpaintingHSVTextureVerification(rgbDxDyImage.GetPointer(), mask, patchHalfWidth,
+                                        numberOfKNN, slightBlurVariance, searchRadius, localRegionSizeMultiplier, maxAllowedUsedPixelsRatio);
+//  LidarInpaintingRGBTextureVerification(rgbDxDyImage.GetPointer(), mask, patchHalfWidth,
+//                                        numberOfKNN, slightBlurVariance, searchRadius);
 
   ITKHelpers::WriteImage(rgbDxDyImage.GetPointer(), "InpaintedRGBDxDy.mha");
 
